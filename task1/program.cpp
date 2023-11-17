@@ -26,30 +26,6 @@ double** copy_matrix(double** matrix) {
     return matrix;
 }
 
-
-double** generate_random_square_matrix(unsigned int seed) {
-    std::srand(seed);
-    double** matrix = new double*[N];
-    for (int i = 0; i < N; ++i) {
-        matrix[i] = new double[N];
-        for (int j = 0; j < N; ++j) {
-            matrix[i][j] = std::rand() % 100;
-        }
-    }
-    return matrix;
-}
-
-double** get_ones_matrix() {
-    double** matrix = new double*[N];
-    for (int i = 0; i < N; ++i) {
-        matrix[i] = new double[N];
-        for (int j = 0; j < N; ++j) {
-            matrix[i][j] = 1;
-        }
-    }
-    return matrix;
-}
-
 void print_matrix(double** matrix) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
@@ -57,10 +33,25 @@ void print_matrix(double** matrix) {
         }
         std::cout << std::endl;
     }
+    std::cout << std::endl;
 }
 
 
-double** parallel_matmul(double** a, double** b) 
+double** generate_random_square_matrix(unsigned int seed) {
+    std::srand(seed);
+    double** matrix = new double*[N];
+    for (int i = 0; i < N; ++i) {
+        matrix[i] = new double[N];
+        for (int j = 0; j < N; ++j) {
+            matrix[i][j] = std::rand() % 10;
+        }
+    }
+    print_matrix(matrix);
+    return matrix;
+}
+
+
+double** matmul(double** a, double** b) 
 {
     double** res = init_matrix();
     int i, j, k;
@@ -75,44 +66,57 @@ double** parallel_matmul(double** a, double** b)
     return res;
 } 
 
-// A = B^4 + C^4 + Tr(B^3 + C^3)E
 
 double** deg(double** matrix, int deg) {
     double** mulcopy = copy_matrix(matrix);
     for (int i = 0; i < deg - 1; i++) {
-        mulcopy = parallel_matmul(mulcopy, matrix);
+        mulcopy = matmul(mulcopy, matrix);
         print_matrix(mulcopy);
-        std::cout << std::endl;
     }
     return mulcopy;
 }
 
+double** sum(double** a, double** b) {
+    double** res = init_matrix();
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            res[i][j] = a[i][j] + b[i][j];
+        }
+    }
+    return res;
+}
+
+double** composite_calc(double** B_3, double** C_3) {
+    double** res = init_matrix();
+    for (int i = 0; i < N; i++) {
+        int C = B_3[i][i] + B_3[i][i];
+        for (int j = 0; j < N; j++) {
+            res[i][j] = C;
+        }
+    }
+    return res;
+}
+
+// A = B^4 + C^4 + Tr(B^3 + C^3)E
+
 int main()
 {
-
     omp_set_num_threads(omp_get_num_procs());
 
     double** B = generate_random_square_matrix(1);
     double** C = generate_random_square_matrix(2);
-    double** E = get_ones_matrix();
-
-    print_matrix(B);
-    std::cout << std::endl;
-
 
     double** B_3 = deg(B, 3);
+    double** C_3 = deg(C, 3);
+    double** D = composite_calc(B_3, C_3);
 
+    double** B_4 = matmul(B_3, B);
+    double** C_4 = matmul(C_3, C);
 
+    double** A = sum(sum(B_4, C_4), D);
 
-
-    // parallel_matmul(B_mul, B, B_mul); // B^3
-    // print_matrix(B_mul);
-
-    // double** C_mul = copy_matrix(C);
-    // parallel_matmul(C_mul, C, C_mul); // C^2
-    // parallel_matmul(C_mul, C, C_mul); // C^3
-
-    // parallel_matmul(C_mul, C, C_mul); // C^4
+    print_matrix(B_4);
+    print_matrix(C_4);
 
 
     return 0;
