@@ -47,7 +47,7 @@ double** get_matrix_of_numbers(double num) {
 }
 
 
-double** generate_random_square_matrix(unsigned int seed) {
+double** generate_random_matrix(unsigned int seed) {
     std::srand(seed);
     double** matrix = new double*[N];
     for (int i = 0; i < N; ++i) {
@@ -60,8 +60,7 @@ double** generate_random_square_matrix(unsigned int seed) {
 }
 
 
-double** matmul(double** a, double** b) 
-{
+double** matmul(double** a, double** b) {
     double** res = init_matrix();
     int i, j, k;
     #pragma omp parallel for private(i,j,k) shared(a,b,res)
@@ -106,6 +105,7 @@ double trace_of_sum(double** a, double** b) {
 }
 
 double calculate(double** B, double** C) {
+    // A = B^4 + C^4 + Tr(B^3 + C^3)E
     double start = omp_get_wtime();
 
     double** B_3 = pow(B, 3);
@@ -123,8 +123,6 @@ double calculate(double** B, double** C) {
     return end - start;
 }
 
-// A = B^4 + C^4 + Tr(B^3 + C^3)E
-
 int main()
 {
     int threads = 1;
@@ -132,8 +130,8 @@ int main()
     double prev_result = 0;
     double cur_result = 999999999;
 
-    double** B = generate_random_square_matrix(1);
-    double** C = generate_random_square_matrix(2);
+    double** B = generate_random_matrix(1);
+    double** C = generate_random_matrix(2);
     
     do {
         omp_set_num_threads(threads);
