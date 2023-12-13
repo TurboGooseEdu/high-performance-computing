@@ -3,7 +3,8 @@
 #include <cstdlib>
 #include <ctime>
 
-#define N 1000
+#define RUNS 10
+int N = 10;
 
 
 double** init_matrix() {
@@ -104,9 +105,8 @@ double trace_of_sum(double** a, double** b) {
     return trace;
 }
 
-double calculate(double** B, double** C) {
+double** calculate(double** B, double** C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
-    double start = omp_get_wtime();
 
     double** B_3 = pow(B, 3);
     double** C_3 = pow(C, 3);
@@ -116,15 +116,26 @@ double calculate(double** B, double** C) {
     double** B_4 = matmul(B_3, B);
     double** C_4 = matmul(C_3, C);
 
-
     double** A = sum(sum(B_4, C_4), D);
+    return A;
+}
 
+double calculate_with_time_measuring(double** B, double** C) {
+    double start = omp_get_wtime();
+    calculate(B, C);
     double end = omp_get_wtime();
     return end - start;
 }
 
-int main()
-{
+double calculate_mean_elapsed(double** B, double** C) {
+    double sum_times = 0;
+    for (int i = 0; i < RUNS; i++) {
+        sum_times += calculate_with_time_measuring(B, C);
+    }
+    return sum_times / RUNS;
+}
+
+void run_experiment() {
     int threads = 1;
 
     double prev_result = 0;
@@ -136,9 +147,19 @@ int main()
     do {
         omp_set_num_threads(threads);
         prev_result = cur_result;
-        cur_result = calculate(B, C);
-        printf("Threads: %d; Elapsed time: %f\n", threads, cur_result);
+        cur_result = calculate_mean_elapsed(B, C);
+        printf("%d, %d, %f\n", N, threads, cur_result);
         threads++;
     } while (cur_result < prev_result);
+}
+
+int main(int argc, char* argv[]) {
+
+    if (argc == 2) {
+        N = std::stoi(argv[1]);
+    }
+
+    run_experiment();
+
     return 0;
 }
