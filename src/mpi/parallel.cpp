@@ -1,8 +1,14 @@
 #include <iostream>
 #include <cstdlib>
 #include <chrono>
+#include "mpi.h"
 
 #define RUNS 10
+
+using namespace std;
+
+int comm_size;
+int my_rank;
 int N = 3;
 
 double* init_matrix() {
@@ -27,16 +33,16 @@ double* copy_matrix(double* matrix) {
 void print_matrix(double* matrix) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            std::cout << matrix[i * N + j] << " ";
+            cout << matrix[i * N + j] << " ";
         }
-        std::cout << std::endl;
+        cout << endl;
     }
-    std::cout << std::endl;
+    cout << endl;
 }
 
 double* get_matrix_of_numbers(double num) {
     double* matrix = new double[N * N];
-    std::fill_n(matrix, N * N, num);
+    fill_n(matrix, N * N, num);
     return matrix;
 }
 
@@ -45,7 +51,7 @@ double* generate_random_matrix() {
     double* matrix = new double[N * N];
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
-            matrix[i * N + j] = std::rand() % 10;
+            matrix[i * N + j] = rand() % 10;
         }
     }
     return matrix;
@@ -114,10 +120,10 @@ double* calculate(double* B, double* C) {
 }
 
 double calculate_with_time_measuring(double* B, double* C) {
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = chrono::high_resolution_clock::now();
     double* result = calculate(B, C);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_secs = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    auto end = chrono::high_resolution_clock::now();
+    auto elapsed_secs = chrono::duration_cast<chrono::duration<double>>(end - start);
     delete_matrix(result);
     return elapsed_secs.count();
 }
@@ -131,30 +137,27 @@ double calculate_mean_elapsed(double* B, double* C) {
 }
 
 void run_experiment() {
-    int threads = 1;
-
-    double prev_result = 0;
-    double cur_result = 999999999;
-
     double* B = generate_random_matrix();
     double* C = generate_random_matrix();
     
-    do {
-        prev_result = cur_result;
-        cur_result = calculate_mean_elapsed(B, C);
-        printf("%d, %d, %f\n", N, threads, cur_result);
-        threads++;
-    } while (cur_result < prev_result);
+    int result = calculate_mean_elapsed(B, C);
+    printf("%d, %d, %f\n", N, comm_size, result);
 }
 
 int main(int argc, char* argv[]) {
 
+    srand(1);
     if (argc == 2) {
-        N = std::stoi(argv[1]);
+        N = stoi(argv[1]);
     }
-    std::srand(1);
+
+    MPI_Init(argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
     run_experiment();
+
+    MPI_Finalize();
 
     return 0;
 }
