@@ -10,7 +10,7 @@ using namespace std;
 int comm_size;
 int my_rank;
 
-int N = 1000;
+int N = 100;
 
 double* init_matrix() {
     return new double[N * N];
@@ -147,13 +147,14 @@ double calculate_with_time_measuring(double* B, double* C) {
     return end - start;
 }
 
-void writeToFile(double time_elapsed) {
+void writeToFileAndConsole(double time_elapsed) {
     ofstream file(OUTPUT_FILE, ios::app);
     if (!file.is_open()) {
         printf("Ошибка открытия файла %s", OUTPUT_FILE);
         exit(1);
     }
     file << N << ", " << comm_size << ", " << time_elapsed << endl;
+    cout << N << ", " << comm_size << ", " << time_elapsed << endl;
     file.close();
 }
 
@@ -163,11 +164,8 @@ void run_experiment() {
     if (my_rank == 0) {
         fill_matrix_with_random_nums(B);
         fill_matrix_with_random_nums(C);
-        int secs_elapsed = calculate_with_time_measuring(B, C);
-        
-        printf("%d, %d, %f\n", N, comm_size, secs_elapsed);
-        writeToFile(secs_elapsed);
-
+        double secs_elapsed = calculate_with_time_measuring(B, C);
+        writeToFileAndConsole(secs_elapsed);
     } else {
         calculate(B, C);
     }
@@ -175,7 +173,6 @@ void run_experiment() {
 
 
 int main(int argc, char* argv[]) {
-
     srand(1);
     if (argc == 2) {
         N = stoi(argv[1]);
