@@ -3,9 +3,9 @@
 #include <fstream>
 #include "mpi.h"
 
-#define OUTPUT_FILE "results.txt"
-
 using namespace std;
+
+char* output_file = "results.txt";
 
 int comm_size;
 int my_rank;
@@ -160,9 +160,9 @@ double calculate_with_time_measuring(double* B, double* C) {
 }
 
 void writeToFile(double time_elapsed) {
-    ofstream file(OUTPUT_FILE, ios::app);
+    ofstream file(output_file, ios::app);
     if (!file.is_open()) {
-        printf("Ошибка открытия файла %s", OUTPUT_FILE);
+        printf("Cannot open file %s", output_file);
         exit(1);
     }
     file << N << ", " << comm_size << ", " << time_elapsed << endl;
@@ -186,8 +186,11 @@ void run_experiment() {
 
 int main(int argc, char* argv[]) {
     srand(1);
-    if (argc == 2) {
+    if (argc > 1) {
         N = stoi(argv[1]);
+        if (argc == 3) {
+            output_file = argv[2];
+        }
     }
 
     MPI_Init(&argc, &argv);
