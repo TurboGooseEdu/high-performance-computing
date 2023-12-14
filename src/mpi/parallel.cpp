@@ -88,12 +88,23 @@ double* pow(double* matrix, int deg) {
 }
 
 double* sum(double* a, double* b) {
+    int rows_per_proc = (int) (N / comm_size);
+    int elems_per_proc = rows_per_proc * N;
+    int offset = my_rank * elems_per_proc;
     double* res = init_matrix();
-    for (int i = 0; i < N; i++) {
+
+    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, a + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    MPI_Scatter(b, elems_per_proc, MPI_DOUBLE, b + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    for (int i = my_rank * rows_per_proc; i < (my_rank + 1) * rows_per_proc; i++) {
         for (int j = 0; j < N; j++) {
             res[i * N + j] = a[i * N + j] + b[i * N + j];
         }
     }
+
+    MPI_Gather(res + offset, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
     return res;
 }
 
@@ -108,8 +119,8 @@ double trace_of_sum(double* a, double* b) {
 double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
-    double* B_3 = pow(B, 3);
-    double* C_3 = pow(C, 3);
+    // double* B_3 = pow(B, 3);
+    // double* C_3 = pow(C, 3);
 
     // double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
 
