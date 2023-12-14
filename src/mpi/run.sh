@@ -1,5 +1,6 @@
 #!/bin/bash
 
+rm results.txt
 prog_name=parallel
 
 mpic++ "$prog_name".cpp -o "$prog_name".o -w

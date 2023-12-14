@@ -1,16 +1,16 @@
 #include <iostream>
 #include <cstdlib>
-#include <chrono>
+#include <fstream>
 #include "mpi.h"
 
-#define RUNS 10
+#define OUTPUT_FILE "results.txt"
 
 using namespace std;
 
 int comm_size;
 int my_rank;
 
-int N = 4;
+int N = 1000;
 
 double* init_matrix() {
     return new double[N * N];
@@ -48,7 +48,7 @@ double* get_matrix_of_numbers(double num) {
 }
 
 
-void fill_matrix_random(double* matrix) {
+void fill_matrix_with_random_nums(double* matrix) {
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
             matrix[i * N + j] = rand() % 10;
@@ -119,58 +119,60 @@ double trace_of_sum(double* a, double* b) {
 double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
-    // double* B_3 = pow(B, 3);
-    // double* C_3 = pow(C, 3);
+    double* B_3 = pow(B, 3);
+    double* C_3 = pow(C, 3);
 
-    // double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
+    double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
 
-    // double* B_4 = matmul(B_3, B);
-    // double* C_4 = matmul(C_3, C);
+    double* B_4 = matmul(B_3, B);
+    double* C_4 = matmul(C_3, C);
 
-    // double* A = sum(sum(B_4, C_4), D);
+    double* A = sum(sum(B_4, C_4), D);
 
-    // delete_matrix(B_3);
-    // delete_matrix(C_3);
-    // delete_matrix(D);
-    // delete_matrix(B_4);
-    // delete_matrix(C_4);
+    delete_matrix(B_3);
+    delete_matrix(C_3);
+    delete_matrix(D);
+    delete_matrix(B_4);
+    delete_matrix(C_4);
 
     return A;
 }
 
-double calculate_with_time_measuring(double* B, double* C) {
-    if (my_rank == 0) {
-        printf("a:\n", my_rank);
-        print_matrix(B);
-        printf("b:\n", my_rank);
-        print_matrix(C);
-    }
-    
+double calculate_with_time_measuring(double* B, double* C) {    
     double start = MPI_Wtime(); 
     double* result = calculate(B, C);
     double end = MPI_Wtime();
 
-    if (my_rank == 0) {
-        printf("res:\n", my_rank);
-        print_matrix(result);
-    }
-
     delete_matrix(result);
     return end - start;
+}
+
+void writeToFile(double time_elapsed) {
+    ofstream file(OUTPUT_FILE, ios::app);
+    if (!file.is_open()) {
+        printf("Ошибка открытия файла %s", OUTPUT_FILE);
+        exit(1);
+    }
+    file << N << ", " << comm_size << ", " << time_elapsed << endl;
+    file.close();
 }
 
 void run_experiment() {
     double* B = init_matrix();
     double* C = init_matrix();
     if (my_rank == 0) {
-        fill_matrix_random(B);
-        fill_matrix_random(C);
-        int result = calculate_with_time_measuring(B, C);
-        printf("%d, %d, %d\n", N, comm_size, result);
+        fill_matrix_with_random_nums(B);
+        fill_matrix_with_random_nums(C);
+        int secs_elapsed = calculate_with_time_measuring(B, C);
+        
+        printf("%d, %d, %f\n", N, comm_size, secs_elapsed);
+        writeToFile(secs_elapsed);
+
     } else {
         calculate(B, C);
     }
 }
+
 
 int main(int argc, char* argv[]) {
 
