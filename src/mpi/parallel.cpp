@@ -71,7 +71,7 @@ double* matmul(double* a, double* b) {
 
     MPI_Bcast(b, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, a + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, my_rank ? a + offset: MPI_IN_PLACE, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     for (int i = my_rank * rows_per_proc; i < (my_rank + 1) * rows_per_proc; i++) {
         for (int j = 0; j < N; j++)
@@ -79,7 +79,7 @@ double* matmul(double* a, double* b) {
                 res[i * N + j] += a[i * N + k] * b[k * N + j];
     }
 
-    MPI_Gather(res + offset, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gather(my_rank ? res + offset: MPI_IN_PLACE, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     return res;
 } 
@@ -99,9 +99,9 @@ double* sum(double* a, double* b) {
     int offset = my_rank * elems_per_proc;
     double* res = init_matrix();
 
-    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, a + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, my_rank ? a + offset: MPI_IN_PLACE, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Scatter(b, elems_per_proc, MPI_DOUBLE, b + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Scatter(b, elems_per_proc, MPI_DOUBLE, my_rank ? b + offset: MPI_IN_PLACE, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     for (int i = my_rank * rows_per_proc; i < (my_rank + 1) * rows_per_proc; i++) {
         for (int j = 0; j < N; j++) {
@@ -109,7 +109,7 @@ double* sum(double* a, double* b) {
         }
     }
 
-    MPI_Gather(res + offset, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gather(my_rank ? res + offset: MPI_IN_PLACE, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     return res;
 }
