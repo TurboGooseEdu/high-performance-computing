@@ -12,6 +12,12 @@ int my_rank;
 
 int N = 100;
 
+void print_if_root(char* message) {
+    if (my_rank == 0) {
+        cout << message << endl;
+    }
+}
+
 double* init_matrix() {
     return new double[N * N];
 }
@@ -120,14 +126,20 @@ double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
     double* B_3 = pow(B, 3);
+    print_if_root("B^3 calculated");
     double* C_3 = pow(C, 3);
+    print_if_root("C^3 calculated");
 
     double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
+    print_if_root("Tr(B^3 + C^3)E calculated");
 
     double* B_4 = matmul(B_3, B);
+    print_if_root("B^4 calculated");
     double* C_4 = matmul(C_3, C);
+    print_if_root("C^4 calculated");
 
     double* A = sum(sum(B_4, C_4), D);
+    print_if_root("Sum calculated");
 
     delete_matrix(B_3);
     delete_matrix(C_3);
@@ -147,14 +159,13 @@ double calculate_with_time_measuring(double* B, double* C) {
     return end - start;
 }
 
-void writeToFileAndConsole(double time_elapsed) {
+void writeToFile(double time_elapsed) {
     ofstream file(OUTPUT_FILE, ios::app);
     if (!file.is_open()) {
         printf("Ошибка открытия файла %s", OUTPUT_FILE);
         exit(1);
     }
     file << N << ", " << comm_size << ", " << time_elapsed << endl;
-    cout << N << ", " << comm_size << ", " << time_elapsed << endl;
     file.close();
 }
 
@@ -165,7 +176,8 @@ void run_experiment() {
         fill_matrix_with_random_nums(B);
         fill_matrix_with_random_nums(C);
         double secs_elapsed = calculate_with_time_measuring(B, C);
-        writeToFileAndConsole(secs_elapsed);
+        cout << "Secs elapsed: " << secs_elapsed << endl;
+        writeToFile(secs_elapsed);
     } else {
         calculate(B, C);
     }
@@ -181,6 +193,8 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+
+    cout << "Process " << my_rank << " running" << endl;
 
     run_experiment();
 
