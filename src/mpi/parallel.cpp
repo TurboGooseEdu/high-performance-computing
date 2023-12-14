@@ -9,7 +9,8 @@ using namespace std;
 
 int comm_size;
 int my_rank;
-int N = 3;
+
+int N = 4;
 
 double* init_matrix() {
     return new double[N * N];
@@ -47,26 +48,46 @@ double* get_matrix_of_numbers(double num) {
 }
 
 
-double* generate_random_matrix() {
-    double* matrix = new double[N * N];
+void fill_matrix_random(double* matrix) {
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
             matrix[i * N + j] = rand() % 10;
         }
     }
-    return matrix;
 }
 
 
 double* matmul(double* a, double* b) {
+
     double* res = init_matrix();
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            for (int k = 0; k < N; ++k) {
-                res[i * N + j] += a[i * N + k] * b[k * N + j];
-            }
-        }
+
+    int rows_per_proc = (int) (N / comm_size);
+    if (my_rank == 1) {
+        printf("rows_per_proc: %d\n", rows_per_proc);
     }
+
+
+    MPI_Bcast(b, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    printf("b in proc %d:\n", my_rank);
+    print_matrix(b);
+
+    // double* rows_to_mul = new double[]
+    
+    MPI_Scatter(a, rows_per_proc * N, MPI_DOUBLE, a + my_rank * rows_per_proc * N,
+            rows_per_proc * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    printf("a in proc %d:\n", my_rank);
+    print_matrix(a);
+
+    for (int i = my_rank * rows_per_proc; i < (my_rank + 1) * rows_per_proc; i++) {
+        // printf("i in proc %d equals %d\n", my_rank, i);
+        for (int j = 0; j < N; j++)
+            for (int k = 0; k < N; k++)
+                res[i * N + j] = res[i * N + j] + a[i * N + k] * b[k * N + j];
+    }
+
+    MPI_Gather(res + my_rank * rows_per_proc * N, rows_per_proc * N, MPI_DOUBLE, res, rows_per_proc * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
     return res;
 } 
 
@@ -100,48 +121,59 @@ double trace_of_sum(double* a, double* b) {
 double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
-    double* B_3 = pow(B, 3);
-    double* C_3 = pow(C, 3);
+    double* A = matmul(B, C);
 
-    double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
+    // double* B_3 = pow(B, 3);
+    // double* C_3 = pow(C, 3);
 
-    double* B_4 = matmul(B_3, B);
-    double* C_4 = matmul(C_3, C);
+    // double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
 
-    double* A = sum(sum(B_4, C_4), D);
+    // double* B_4 = matmul(B_3, B);
+    // double* C_4 = matmul(C_3, C);
 
-    delete_matrix(B_3);
-    delete_matrix(C_3);
-    delete_matrix(D);
-    delete_matrix(B_4);
-    delete_matrix(C_4);
+    // double* A = sum(sum(B_4, C_4), D);
+
+    // delete_matrix(B_3);
+    // delete_matrix(C_3);
+    // delete_matrix(D);
+    // delete_matrix(B_4);
+    // delete_matrix(C_4);
 
     return A;
 }
 
 double calculate_with_time_measuring(double* B, double* C) {
-    auto start = chrono::high_resolution_clock::now();
-    double* result = calculate(B, C);
-    auto end = chrono::high_resolution_clock::now();
-    auto elapsed_secs = chrono::duration_cast<chrono::duration<double>>(end - start);
-    delete_matrix(result);
-    return elapsed_secs.count();
-}
-
-double calculate_mean_elapsed(double* B, double* C) {
-    double sum_times = 0;
-    for (int i = 0; i < RUNS; i++) {
-        sum_times += calculate_with_time_measuring(B, C);
+    if (my_rank == 0) {
+        printf("a:\n", my_rank);
+        print_matrix(B);
+        printf("b:\n", my_rank);
+        print_matrix(C);
     }
-    return sum_times / RUNS;
+    
+    double start = MPI_Wtime(); 
+    double* result = calculate(B, C);
+    double end = MPI_Wtime();
+
+    if (my_rank == 0) {
+        printf("res:\n", my_rank);
+        print_matrix(result);
+    }
+
+    delete_matrix(result);
+    return end - start;
 }
 
 void run_experiment() {
-    double* B = generate_random_matrix();
-    double* C = generate_random_matrix();
-    
-    int result = calculate_mean_elapsed(B, C);
-    printf("%d, %d, %f\n", N, comm_size, result);
+    double* B = init_matrix();
+    double* C = init_matrix();
+    if (my_rank == 0) {
+        fill_matrix_random(B);
+        fill_matrix_random(C);
+        int result = calculate_with_time_measuring(B, C);
+        printf("%d, %d, %d\n", N, comm_size, result);
+    } else {
+        calculate(B, C);
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -151,7 +183,7 @@ int main(int argc, char* argv[]) {
         N = stoi(argv[1]);
     }
 
-    MPI_Init(argc, &argv);
+    MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
