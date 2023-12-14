@@ -16,9 +16,9 @@ fi
 
 for dim in "${dims[@]}"; do
     for proc in "${procs[@]}"; do
-        echo "-- Start experiment with N=$dim and $proc processes"
+        echo "== Start experiment with N=$dim and $proc processes"
         mpirun -np "$proc" "$prog_name".o "$dim" "$output_file"
-        echo -e "-- Completed!\n"
+        echo -e "== Completed!\n"
     done
 done
 

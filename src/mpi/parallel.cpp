@@ -3,6 +3,8 @@
 #include <fstream>
 #include "mpi.h"
 
+#define RUNS 3
+
 using namespace std;
 
 char* output_file = "results.txt";
@@ -125,6 +127,7 @@ double trace_of_sum(double* a, double* b) {
 double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
+    print_if_root("\n");
     double* B_3 = pow(B, 3);
     print_if_root("B^3 calculated");
     double* C_3 = pow(C, 3);
@@ -140,6 +143,7 @@ double* calculate(double* B, double* C) {
 
     double* A = sum(sum(B_4, C_4), D);
     print_if_root("Sum calculated");
+    print_if_root("----");
 
     delete_matrix(B_3);
     delete_matrix(C_3);
@@ -175,11 +179,19 @@ void run_experiment() {
     if (my_rank == 0) {
         fill_matrix_with_random_nums(B);
         fill_matrix_with_random_nums(C);
-        double secs_elapsed = calculate_with_time_measuring(B, C);
-        cout << "Secs elapsed: " << secs_elapsed << endl;
-        writeToFile(secs_elapsed);
+
+        double total_time = 0;
+        for (int i = 0; i < RUNS; i++) {
+            total_time += calculate_with_time_measuring(B, C);
+        }
+        double avg_elapsed = total_time / RUNS;
+        cout << "Average time elapsed (secs): " << avg_elapsed << endl;
+        
+        writeToFile(avg_elapsed);
     } else {
-        calculate(B, C);
+        for (int i = 0; i < RUNS; i++) {
+            calculate(B, C);
+        }
     }
 }
 
