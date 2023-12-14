@@ -58,35 +58,22 @@ void fill_matrix_random(double* matrix) {
 
 
 double* matmul(double* a, double* b) {
-
+    int rows_per_proc = (int) (N / comm_size);
+    int elems_per_proc = rows_per_proc * N;
+    int offset = my_rank * elems_per_proc;
     double* res = init_matrix();
 
-    int rows_per_proc = (int) (N / comm_size);
-    if (my_rank == 1) {
-        printf("rows_per_proc: %d\n", rows_per_proc);
-    }
-
-
     MPI_Bcast(b, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    printf("b in proc %d:\n", my_rank);
-    print_matrix(b);
 
-    // double* rows_to_mul = new double[]
-    
-    MPI_Scatter(a, rows_per_proc * N, MPI_DOUBLE, a + my_rank * rows_per_proc * N,
-            rows_per_proc * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    printf("a in proc %d:\n", my_rank);
-    print_matrix(a);
+    MPI_Scatter(a, elems_per_proc, MPI_DOUBLE, a + offset, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     for (int i = my_rank * rows_per_proc; i < (my_rank + 1) * rows_per_proc; i++) {
-        // printf("i in proc %d equals %d\n", my_rank, i);
         for (int j = 0; j < N; j++)
             for (int k = 0; k < N; k++)
-                res[i * N + j] = res[i * N + j] + a[i * N + k] * b[k * N + j];
+                res[i * N + j] += a[i * N + k] * b[k * N + j];
     }
 
-    MPI_Gather(res + my_rank * rows_per_proc * N, rows_per_proc * N, MPI_DOUBLE, res, rows_per_proc * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gather(res + offset, elems_per_proc, MPI_DOUBLE, res, elems_per_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     return res;
 } 
@@ -121,10 +108,8 @@ double trace_of_sum(double* a, double* b) {
 double* calculate(double* B, double* C) {
     // A = B^4 + C^4 + Tr(B^3 + C^3)E
 
-    double* A = matmul(B, C);
-
-    // double* B_3 = pow(B, 3);
-    // double* C_3 = pow(C, 3);
+    double* B_3 = pow(B, 3);
+    double* C_3 = pow(C, 3);
 
     // double* D = get_matrix_of_numbers(trace_of_sum(B_3, C_3));
 
